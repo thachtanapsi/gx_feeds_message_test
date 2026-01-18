@@ -13,6 +13,7 @@ defmodule GxFeedsMessageTest.FullDayMessageWorker.Worker do
   ## Examples
 
   iex> GxFeedsMessageTest.FullDayMessageWorker.Worker.run_send_message("message_data/20260116")
+  iex> GxFeedsMessageTest.FullDayMessageWorker.Worker.run_send_message("/app/gx_feeds_message_test/mmds_logs_20260116")
   """
 
   def run_send_message(path_dir) do
@@ -41,9 +42,9 @@ defmodule GxFeedsMessageTest.FullDayMessageWorker.Worker do
       File.read!(file_path)
       |> String.split("\n")
       |> Enum.filter(fn line -> String.trim(line) != "" end)
-      |> Enum.chunk_every(@batch_size)
+      |> Enum.chunk_every(get_batch_size())
       |> Enum.each(fn batch ->
-        # Xử lý batch @batch_size dòng
+        # Xử lý batch get_batch_size() dòng
         Enum.each(batch, fn line ->
           case UdpSender.parse_log_line(line) do
             {:ok, port, message} ->
@@ -55,12 +56,25 @@ defmodule GxFeedsMessageTest.FullDayMessageWorker.Worker do
           end
         end)
 
-        # Sleep 1 giây sau mỗi batch để đảm bảo tốc độ @batch_size dòng/giây
+        # Sleep 1 giây sau mỗi batch để đảm bảo tốc độ get_batch_size() dòng/giây
         Process.sleep(1000)
       end)
     rescue
       error ->
         :ok
     end
+  end
+
+  @doc """
+    Application config batch size
+
+    ## Examples
+
+    iex> Application.put_env(:gx_feeds_message_test, :batch_size, 1000)
+    iex> GxFeedsMessageTest.FullDayMessageWorker.Worker.get_batch_size()
+  """
+
+  def get_batch_size() do
+    Application.get_env(:gx_feeds_message_test, :batch_size, @batch_size)
   end
 end
